@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Booklet Formatter</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        .container { background: #f9f9f9; padding: 30px; border-radius: 8px; border: 1px solid #ddd; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="text"], input[type="file"] { width: 100%; margin-bottom: 20px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
+        button { background: #0070f3; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #005bb5; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Booklet Formatter</h1>
+        <p>Upload a PDF. This tool inserts blank pages behind every page <strong>except</strong> "Notes".</p>
+        <form id="pdfForm">
+            <label for="file">Select PDF:</label>
+            <input type="file" id="file" name="file" accept="application/pdf" required>
+
+            <label for="notes">Notes Pages (comma separated):</label>
+            <input type="text" id="notes" name="notes" placeholder="e.g. 3, 4, 10">
+
+            <button type="submit" id="submitBtn">Process PDF</button>
+        </form>
+        <p id="status" style="margin-top: 20px; font-weight: bold;"></p>
+    </div>
+
+    <script>
+        const form = document.getElementById('pdfForm');
+        const status = document.getElementById('status');
+        const btn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            status.innerText = "Uploading and formatting...";
+
+            const formData = new FormData(form);
+
+            try {
+                // Ensure this path matches the python route
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "booklet_ready.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    status.innerText = "Success! Download started.";
+                } else {
+                    const text = await response.text();
+                    status.innerText = "Error: " + text;
+                }
+            } catch (err) {
+                status.innerText = "Network Error. Please try again.";
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Process PDF";
+            }
+        });
+    </script>
+</body>
+</html>
