@@ -4,11 +4,17 @@ import io
 
 app = Flask(__name__)
 
-# Vercel will route requests to /api to this file.
-# We add both /api and / to ensure it catches the request regardless of how Vercel strips the path.
-@app.route('/api', methods=['POST'])
-@app.route('/', methods=['POST'])
-def process_pdf():
+# --- THE FIX: CATCH-ALL ROUTE ---
+# This accepts POST requests on any URL path. 
+# It prevents Vercel/Flask path mismatches.
+@app.route('/', defaults={'path': ''}, methods=['POST', 'GET'])
+@app.route('/<path:path>', methods=['POST', 'GET'])
+def catch_all(path):
+    # If someone visits the API URL directly in browser (GET), show a status message
+    if request.method == 'GET':
+        return "API is Running. Please use the form on the homepage to upload."
+
+    # --- PROCESSING LOGIC (POST) ---
     try:
         if 'file' not in request.files:
             return "No file part", 400
@@ -35,7 +41,6 @@ def process_pdf():
         else:
             return "Empty PDF", 400
 
-        # --- LOGIC ---
         total_input_pages = len(reader.pages)
         for i in range(total_input_pages):
             current_page_num = i + 1
@@ -60,3 +65,6 @@ def process_pdf():
         )
     except Exception as e:
         return f"Server Error: {str(e)}", 500
+
+if __name__ == '__main__':
+    app.run()
