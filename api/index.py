@@ -1,5 +1,6 @@
 from flask import Flask, request, send_file
-from pypdf import PdfReader, PdfWriter
+# strict import to ensure we are using the modern library
+from pypdf import PdfReader, PdfWriter 
 import io
 
 app = Flask(__name__)
