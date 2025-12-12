@@ -4,20 +4,13 @@ import io
 
 app = Flask(__name__)
 
-# --- THE FIX: CATCH-ALL ROUTE ---
-# This accepts POST requests on any URL path. 
-# It prevents Vercel/Flask path mismatches.
-@app.route('/', defaults={'path': ''}, methods=['POST', 'GET'])
-@app.route('/<path:path>', methods=['POST', 'GET'])
-def catch_all(path):
-    # If someone visits the API URL directly in browser (GET), show a status message
-    if request.method == 'GET':
-        return "API is Running. Please use the form on the homepage to upload."
-
-    # --- PROCESSING LOGIC (POST) ---
+# We strictly listen to the root of the api/ function
+@app.route('/', methods=['POST'])
+def process_pdf():
     try:
+        # 1. Validation
         if 'file' not in request.files:
-            return "No file part", 400
+            return "No file uploaded", 400
         
         file = request.files['file']
         notes_input = request.form.get('notes', '')
@@ -30,6 +23,7 @@ def catch_all(path):
         except ValueError:
             return "Invalid page numbers", 400
 
+        # 2. PDF Processing
         input_stream = io.BytesIO(file.read())
         reader = PdfReader(input_stream)
         writer = PdfWriter()
@@ -41,18 +35,19 @@ def catch_all(path):
         else:
             return "Empty PDF", 400
 
-        total_input_pages = len(reader.pages)
-        for i in range(total_input_pages):
+        for i in range(len(reader.pages)):
             current_page_num = i + 1
             page = reader.pages[i]
             writer.add_page(page)
             
+            # Logic: If NOT a note page, add blank back
             if current_page_num not in note_pages:
                 writer.add_blank_page(width=width, height=height)
 
         while len(writer.pages) % 4 != 0:
             writer.add_blank_page(width=width, height=height)
 
+        # 3. Return File
         output_stream = io.BytesIO()
         writer.write(output_stream)
         output_stream.seek(0)
@@ -65,6 +60,3 @@ def catch_all(path):
         )
     except Exception as e:
         return f"Server Error: {str(e)}", 500
-
-if __name__ == '__main__':
-    app.run()
