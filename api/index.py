@@ -4,9 +4,9 @@ import io
 
 app = Flask(__name__)
 
-# Note: Because this file is named 'process.py', Vercel routes 
-# requests from /api/process directly here. 
-# We use route('/') because inside this file, it is the root.
+# Vercel will route requests to /api to this file.
+# We add both /api and / to ensure it catches the request regardless of how Vercel strips the path.
+@app.route('/api', methods=['POST'])
 @app.route('/', methods=['POST'])
 def process_pdf():
     try:
@@ -16,14 +16,13 @@ def process_pdf():
         file = request.files['file']
         notes_input = request.form.get('notes', '')
 
-        # Parse note pages
         try:
             if notes_input.strip():
                 note_pages = [int(x.strip()) for x in notes_input.split(',')]
             else:
                 note_pages = []
         except ValueError:
-            return "Invalid page numbers. Use 1, 3, 5...", 400
+            return "Invalid page numbers", 400
 
         input_stream = io.BytesIO(file.read())
         reader = PdfReader(input_stream)
@@ -43,11 +42,9 @@ def process_pdf():
             page = reader.pages[i]
             writer.add_page(page)
             
-            # Logic: If NOT a note page, add blank back
             if current_page_num not in note_pages:
                 writer.add_blank_page(width=width, height=height)
 
-        # Pad to multiple of 4
         while len(writer.pages) % 4 != 0:
             writer.add_blank_page(width=width, height=height)
 
@@ -63,7 +60,3 @@ def process_pdf():
         )
     except Exception as e:
         return f"Server Error: {str(e)}", 500
-
-# Required for Vercel
-if __name__ == '__main__':
-    app.run()
